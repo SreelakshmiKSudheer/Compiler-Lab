@@ -21,12 +21,16 @@ static char nonterminals[MAX_LEN];
 static char start_symbol = '\0';
 
 /* -------------------- Utility set operations -------------------- */
-static int is_nonterminal(char c) { return (c >= 'A' && c <= 'Z'); }
+static int is_nonterminal(char c) 
+{ 
+    return (c >= 'A' && c <= 'Z'); 
+}
 
 static void set_add(char *set, char elem)
 {
     if (elem == '\0') return;
-    if (!strchr(set, elem)) {
+    if (!strchr(set, elem)) 
+    {
         size_t l = strlen(set);
         set[l]   = elem;
         set[l+1] = '\0';
@@ -37,8 +41,10 @@ static void set_add(char *set, char elem)
 static int set_union_inplace(char *dest, const char *src)
 {
     int changed = 0;
-    for (size_t i = 0; src[i] != '\0'; ++i) {
-        if (!strchr(dest, src[i])) {
+    for (size_t i = 0; src[i] != '\0'; ++i)
+    {
+        if (!strchr(dest, src[i])) 
+        {
             size_t l = strlen(dest);
             dest[l]   = src[i];
             dest[l+1] = '\0';
@@ -52,19 +58,24 @@ static int set_union_inplace(char *dest, const char *src)
 static int set_remove(char *set, char elem)
 {
     char *p = strchr(set, elem);
-    if (!p) return 0;
+    if (!p) 
+        return 0;
     memmove(p, p+1, strlen(p+1)+1);
     return 1;
 }
 
 /* Return 1 if set contains elem */
-static int set_contains(const char *set, char elem) { return strchr(set, elem) != NULL; }
+static int set_contains(const char *set, char elem) 
+{ 
+    return strchr(set, elem) != NULL; 
+}
 
 /* Print set nicely */
 static void print_set(const char *label, const char *set)
 {
     printf("%s {", label);
-    for (size_t i = 0; set[i] != '\0'; ++i) {
+    for (size_t i = 0; set[i] != '\0'; ++i) 
+    {
         if (i) printf(",");
         putchar(set[i]);
     }
@@ -76,31 +87,40 @@ static void read_productions(void)
 {
     printf("Note: Grammar should not have left recursion (program assumes acyclic derivation)\n");
     printf("Enter number of productions: ");
-    if (scanf("%d", &num_productions) != 1 || num_productions <= 0) {
+
+    if (scanf("%d", &num_productions) != 1 || num_productions <= 0) 
+    {
         fprintf(stderr, "Invalid number of productions\n");
         exit(1);
     }
     getchar(); /* consume newline */
 
     printf("Enter productions in form A=BC or A=aB or A=# for epsilon (no spaces preferred)\n");
+
     for (int i = 0; i < num_productions; ++i) {
-        if (!fgets(productions[i], sizeof(productions[i]), stdin)) {
+        if (!fgets(productions[i], sizeof(productions[i]), stdin)) 
+        {
             fprintf(stderr, "Unexpected input error\n");
             exit(1);
         }
+
         /* trim newline */
         productions[i][strcspn(productions[i], "\r\n")] = '\0';
-        if (strlen(productions[i]) < 3 || productions[i][1] != '=') {
+        
+        if (strlen(productions[i]) < 3 || productions[i][1] != '=') 
+        {
             fprintf(stderr, "Invalid production format on line %d: %s\n", i+1, productions[i]);
             exit(1);
         }
         char lhs = productions[i][0];
-        if (!is_nonterminal(lhs)) {
+        if (!is_nonterminal(lhs)) 
+        {
             fprintf(stderr, "LHS must be an uppercase nonterminal (A-Z): %c\n", lhs);
             exit(1);
         }
         /* collect nonterminals */
-        if (!strchr(nonterminals, lhs)) {
+        if (!strchr(nonterminals, lhs)) 
+        {
             size_t l = strlen(nonterminals);
             nonterminals[l] = lhs;
             nonterminals[l+1] = '\0';
@@ -113,44 +133,53 @@ static void read_productions(void)
 
 /* Compute FIRST of a sequence (string starting at rhs[pos]) into out.
    Returns 1 if the sequence can derive epsilon (i.e., FIRST contains EPSILON). */
+
 static int first_of_sequence(const char *rhs, int pos, char *out)
 {
     /* rhs[pos] is first symbol of sequence */
     int rhs_nullable = 1; /* assume nullable until a non-epsilon is found */
 
-    for (int k = pos; rhs[k] != '\0'; ++k) {
+    for (int k = pos; rhs[k] != '\0'; ++k) 
+    {
         char sym = rhs[k];
 
-        if (sym == EPSILON) {
+        if (sym == EPSILON) 
+        {
             set_add(out, EPSILON);
             rhs_nullable = 1;
             break;
         }
 
-        if (!is_nonterminal(sym)) { /* terminal */
+        if (!is_nonterminal(sym)) 
+        { /* terminal */
             set_add(out, sym);
             rhs_nullable = 0;
             break;
         }
 
-        /* sym is nonterminal: add FIRST(sym) \ {EPSILON} */
+        /* sym is nonterminal: add FIRST(sym) \ {EPSILON} */ 
+
         int idx = sym - 'A';
+        
         for (size_t t = 0; firstsets[idx][t] != '\0'; ++t) {
             if (firstsets[idx][t] != EPSILON)
                 set_add(out, firstsets[idx][t]);
         }
 
-        if (set_contains(firstsets[idx], EPSILON)) {
+        if (set_contains(firstsets[idx], EPSILON)) 
+        {
             /* sym can be epsilon, continue to next symbol */
             rhs_nullable = 1;
             continue;
-        } else {
+        } else 
+        {
             rhs_nullable = 0;
             break;
         }
     }
 
-    if (rhs[0] == '\0') {
+    if (rhs[0] == '\0') 
+    {
         /* empty RHS -> epsilon */
         set_add(out, EPSILON);
         rhs_nullable = 1;
