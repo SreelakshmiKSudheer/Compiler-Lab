@@ -80,95 +80,224 @@ void read_productions()
     StartSymbol = productions[0][0];
 }
 //Calculates and stores the first sets (indexed by ordinal position of chars)
+// void calc_first(char symbol,char *set)
+// {
+//     if(symbol=='\0')
+//         return;
+//     if(!isupper(symbol)) //Only uppercase letters are non terminals
+//     {
+//         if(is_in_set(set,'#'))//if epsilon is already in the set, remove it since there is
+//             set_remove(set,'#');// a terminal or another epsilon in RHS
+//         set_add(set,symbol);
+//     }
+//     else
+//     {
+//         for(int i=0;i<num_productions;i++)
+//         {
+//             if(productions[i][0]==symbol) //Check the LHS
+//             {
+//                 int j = 2;
+//                 char temp_first[SIZE]={'\0'};
+//                 while(productions[i][j]!='\0')
+//                 {
+//                     calc_first(productions[i][j],temp_first);
+//                     for(int l=0;temp_first[l]!=0;l++) //Copy the first set to result
+//                         set_add(set,temp_first[l]);
+//                     if(is_in_set(temp_first,'#'))
+//                     {
+//                         //epsilon in first set, we need to consider next NT
+//                         j++;
+//                     }
+//                     else
+//                     {   //if epsilon is already in the set, remove it since there is atleast
+//                         // one NT in RHS that doesn't derive epsilon
+//                         set_remove(set,'#');
+//                         break;
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
+
+// ...existing code...
 void calc_first(char symbol,char *set)
 {
     if(symbol=='\0')
         return;
-    if(!isupper(symbol)) //Only uppercase letters are non terminals
+    if(!isupper(symbol)) // terminal or '#'
     {
-        if(is_in_set(set,'#'))//if epsilon is already in the set, remove it since there is
-            set_remove(set,'#');// a terminal or another epsilon in RHS
         set_add(set,symbol);
+        return;
     }
-    else
+
+    /* For each production A = alpha where A == symbol,
+       compute FIRST(alpha) and union into set.
+       Only add '#' for A if some production's entire RHS is nullable. */
+    for(int i=0;i<num_productions;i++)
     {
-        for(int i=0;i<num_productions;i++)
+        if(productions[i][0] != symbol) continue;
+
+        int j = 2;
+        int all_nullable = 1;           // assume RHS nullable until proven otherwise
+
+        while(productions[i][j] != '\0')
         {
-            if(productions[i][0]==symbol) //Check the LHS
+            char temp_first[SIZE] = {'\0'};
+            calc_first(productions[i][j], temp_first);
+
+            // add FIRST(productions[i][j]) \ {#} to result
+            for(int k=0; temp_first[k] != '\0'; k++)
             {
-                int j = 2;
-                char temp_first[SIZE]={'\0'};
-                while(productions[i][j]!='\0')
-                {
-                    calc_first(productions[i][j],temp_first);
-                    for(int l=0;temp_first[l]!=0;l++) //Copy the first set to result
-                        set_add(set,temp_first[l]);
-                    if(is_in_set(temp_first,'#'))
-                    {
-                        //epsilon in first set, we need to consider next NT
-                        j++;
-                    }
-                    else
-                    {   //if epsilon is already in the set, remove it since there is atleast
-                        // one NT in RHS that doesn't derive epsilon
-                        set_remove(set,'#');
-                        break;
-                    }
-                }
+                if(temp_first[k] != '#')
+                    set_add(set, temp_first[k]);
             }
+
+            // if this symbol can produce epsilon, continue to next symbol
+            if(is_in_set(temp_first,'#'))
+            {
+                j++;
+                continue;
+            }
+            // otherwise RHS is not entirely nullable
+            all_nullable = 0;
+            break;
         }
+
+        if(all_nullable)
+            set_add(set,'#');
     }
 }
-//Function to find the follow sets
+// ...existing code...
+// //Function to find the follow sets
+// void calc_follow(char symbol,char *set)
+// {
+//     if(symbol=='\0') //check for NUL character
+//         return;
+//     if(!isupper(symbol)) //a terminal, first is itself
+//     {
+//         set_add(set,symbol);
+//         return;
+//     }
+//     if(symbol==StartSymbol)
+//     {
+//         set_add(set,'$'); //Add $ to the follow of start symbol
+//     }
+//     //Search for symbol in all productions
+//     for(int i=0;i<num_productions;i++)
+//     {
+//         for(int j=2;productions[i][j]!='\0';j++)
+//         {
+//             if(symbol==productions[i][j])
+//             {
+//                if(productions[i][j+1]!='\0') //Not the last NT
+//                {
+//                     //char temp[SIZE]={'\0'};
+//                     if(!isupper(productions[i][j+1])&&productions[i][j+1]!='#') //Terminal
+//                     {
+//                         set_add(set,productions[i][j+1]);
+//                     }
+//                     else if(productions[i][j+1]!='#') //Non terminal
+//                     {
+//                         set_union(set,firstsets[get_index(productions[i][j+1])]);
+//                         if(is_in_set(firstsets[get_index(productions[i][j+1])],'#'))
+//                         {
+//                             if(productions[i][j+2]=='\0') //Last NT so Follow of RHS
+//                                 calc_follow(productions[i][0],set);
+//                             calc_follow(productions[i][j+2],set);
+//                         }
+//                     }
+//                }
+//                else //Last NT
+//                {
+//                     if(productions[i][0]!=symbol) //Prevent infinite loops
+//                     {
+//                         calc_follow(productions[i][0],set);
+//                     }
+//                }
+//             }
+//         }
+//     }
+// }
+
+// ...existing code...
 void calc_follow(char symbol,char *set)
 {
-    if(symbol=='\0') //check for NUL character
+    if(symbol=='\0')
         return;
-    if(!isupper(symbol)) //a terminal, first is itself
+    if(!isupper(symbol))
     {
         set_add(set,symbol);
         return;
     }
     if(symbol==StartSymbol)
-    {
-        set_add(set,'$'); //Add $ to the follow of start symbol
-    }
-    //Search for symbol in all productions
+        set_add(set,'$');
+
     for(int i=0;i<num_productions;i++)
     {
-        for(int j=2;productions[i][j]!='\0';j++)
+        for(int j=2; productions[i][j]!='\0'; j++)
         {
-            if(symbol==productions[i][j])
+            if(productions[i][j] != symbol)
+                continue;
+
+            /* If symbol is last in RHS -> add FOLLOW(LHS) */
+            if(productions[i][j+1] == '\0')
             {
-               if(productions[i][j+1]!='\0') //Not the last NT
-               {
-                    //char temp[SIZE]={'\0'};
-                    if(!isupper(productions[i][j+1])&&productions[i][j+1]!='#') //Terminal
-                    {
-                        set_add(set,productions[i][j+1]);
-                    }
-                    else if(productions[i][j+1]!='#') //Non terminal
-                    {
-                        set_union(set,firstsets[get_index(productions[i][j+1])]);
-                        if(is_in_set(firstsets[get_index(productions[i][j+1])],'#'))
-                        {
-                            if(productions[i][j+2]=='\0') //Last NT so Follow of RHS
-                                calc_follow(productions[i][0],set);
-                            calc_follow(productions[i][j+2],set);
-                        }
-                    }
-               }
-               else //Last NT
-               {
-                    if(productions[i][0]!=symbol) //Prevent infinite loops
-                    {
-                        calc_follow(productions[i][0],set);
-                    }
-               }
+                if(productions[i][0] != symbol) /* avoid immediate self-loop */
+                    calc_follow(productions[i][0], set);
+                continue;
+            }
+
+            /* Otherwise examine the suffix after symbol */
+            int k = j+1;
+            int need_follow_lhs = 1; /* true until we find a non-epsilon FIRST */
+            while(productions[i][k] != '\0')
+            {
+                char nxt = productions[i][k];
+
+                if(nxt == '#') /* explicit epsilon in RHS: keep scanning */
+                {
+                    k++;
+                    continue;
+                }
+
+                if(!isupper(nxt)) /* terminal: add it to FOLLOW(symbol) */
+                {
+                    set_add(set, nxt);
+                    need_follow_lhs = 0;
+                    break;
+                }
+
+                /* nxt is non-terminal: add FIRST(nxt) \ {#} */
+                for(int t = 0; firstsets[get_index(nxt)][t] != '\0'; t++)
+                {
+                    char f = firstsets[get_index(nxt)][t];
+                    if(f != '#') set_add(set, f);
+                }
+
+                /* if FIRST(nxt) contains epsilon, continue to next symbol */
+                if(is_in_set(firstsets[get_index(nxt)], '#'))
+                {
+                    k++;
+                    continue;
+                }
+                else
+                {
+                    need_follow_lhs = 0;
+                    break;
+                }
+            }
+
+            /* if all symbols to the right can produce epsilon, add FOLLOW(LHS) */
+            if(need_follow_lhs)
+            {
+                if(productions[i][0] != symbol)
+                    calc_follow(productions[i][0], set);
             }
         }
     }
 }
+// ...existing code...
 
 int main()
 {
